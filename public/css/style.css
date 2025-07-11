@@ -1,0 +1,118 @@
+html {
+    height: 98%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    height: 100%;
+    padding: 0;
+    font-family: sans-serif; 
+    margin: 10px; background-color: #9dc8f7 }
+
+h1 { 
+    color: #007bff; 
+    text-shadow: 8px 4px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+h2 {
+    color: #d66d03;
+    font-size: 16px;
+    text-shadow: 4px 2px 2px rgba(0, 0, 0, 0.1);
+    margin-top: 0;
+}
+.senden {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+.senden button {
+    height: 40px; 
+    background-color: #007bff; 
+    color: white; 
+    padding: 10px 15px; 
+    border: none; 
+    border-radius: 5px; 
+    cursor: pointer; }
+.chat button:hover { background-color: #0056b3; }
+.senden form {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    align-items: center;
+}   
+.senden input {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
+    padding: 10px;
+    font-size: 15px;
+    border: 1px solid #007bff;
+    margin-right: 10px;
+    border-radius: 4px;
+}
+footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: #666;
+}
+.chat {
+    display:flex;
+    flex-direction: column;
+    max-width: 800px;
+    height: 94%;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 16px;
+    box-shadow: 4px 2px 2px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+.messwindows {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
+    margin-bottom: 20px;
+    padding: 35px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: #fff;
+    border-radius: 8px;
+    border: #007bff 1px solid;
+    overflow: auto;
+    overflow-wrap: break-word;
+    scroll-behavior: smooth;
+}
+
+.messwindows li {
+    margin-bottom: 10px;
+    list-style-type: "💬 ";
+}
+
+.time {
+    color: lightseagreen;
+    font-size: 0.7em;
+}
+
+.user-action {
+    color: gray;
+}
+
+.user-name {
+    font-weight: bold;
+}
+
+.secretMsg {
+    color: rgb(17, 116, 4);
+}
+
+.command {
+    color: rgb(255, 0, 0);
+}
+
+.privateMSG {
+    color: rgb(0, 0, 255);
+}   

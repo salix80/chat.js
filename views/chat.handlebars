@@ -1,0 +1,23 @@
+
+
+<div class="chat" id="chat-container">
+    <h1>ESPAS Chat (◕‿◕✿)</h1>
+    <h2 id="topic">{{topic}}</h2>
+    <div class="messwindows" id="messages">
+        {{#each messages}}
+            <div class="message">
+                <strong>{{this.username}}:</strong> {{this.text}}
+            </div>
+        {{/each}} 
+    </div>
+    <div class="senden">
+        <form id="message-form">
+            <input type="text" id="message-input" placeholder="Nachricht eingeben..." autocomplete="off" required>
+            <button type="submit">Senden</button>
+        </form>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="script/chat-client.js"></script>
+    </div>
+</div>
+ 
+
