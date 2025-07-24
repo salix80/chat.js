@@ -1,22 +1,70 @@
 
 
 <div class="chat" id="chat-container">
+    <span class="topicMenu">    
     <h1>ESPAS Chat (◕‿◕✿)</h1>
+    <img src="img/menu.svg" alt="Menu" id="menue-Button" class="menueButton" onclick="menuToggle()">
+    </span>
     <h2 id="topic">{{topic}}</h2>
+    
     <div class="messwindows" id="messages">
-        {{#each messages}}
-            <div class="message">
+        <div id="menu" class="menu">
+            <h3>Menu</h3>
+            <form id="action-Buttons">
+                <button type=""button" onclick="clean()">Chat leeren</button>
+                <button type="button" onclick="userlist()">Benutzer anzeigen</button>
+                <button type="button" onclick="help()">Hilfe anzeigen</button>
+            </form>
+
+            <b>Benutzernamen ändern</b>
+            <form id="username-form">
+                <input type="text" id="username-input" placeholder="Neuer Benutzername" autocomplete="off" required>
+                <button type="button" onclick="nameAendern()">Ändern</button>
+            </form>
+            <b>Login</b>
+            <form id="login-form">
+                <input type="text" id="login-input" placeholder="Benutzername" autocomplete="off" required>
+                <input type="password" id="password-input" placeholder="Passwort" autocomplete="off" required>
+                <button type="button" onclick="login()">Login</button>
+            </form>
+            <b>Benutzername registrieren</b>
+            <form id="register-form">
+                <input type="password" id="register-password-input1" placeholder="Passwort" autocomplete="off" required>
+                <input type="password" id="register-password-input2" placeholder="Passwort wiederholen" autocomplete="off" required>
+                <button type="button" onclick="register()">Registrieren</button>
+            </form>
+            <b>Letztes Login von Benutzer anzeigen</b>
+            <form id="last-login-form">
+                <input type="text" id="last-login-input" placeholder="Benutzername" autocomplete="off" required>
+                <button type="button" onclick="lastLogin()">Anzeigen</button>
+            </form>
+        </div>
+        
+        {{#if messages}}
+            <div class="message-header">Nachrichten:</div>
+        {{else}}
+            <div class="message-header">Keine Nachrichten vorhanden.</div>
+        {{/if}}
+        
+            {{#each messages}}
+                <div class="message">
                 <strong>{{this.username}}:</strong> {{this.text}}
             </div>
-        {{/each}} 
+            {{/each}}
+
+         <div id="emoji-container" class="smileybox"></div>    
     </div>
     <div class="senden">
+
+        <span class="smileybtn" onclick="showSmileys()">😊</span>
         <form id="message-form">
             <input type="text" id="message-input" placeholder="Nachricht eingeben..." autocomplete="off" required>
             <button type="submit">Senden</button>
         </form>
         <script src="/socket.io/socket.io.js"></script>
         <script src="script/chat-client.js"></script>
+        <script src="script/menu.js"></script>
+        <script src="script/smileys.js"></script>
     </div>
 </div>
  

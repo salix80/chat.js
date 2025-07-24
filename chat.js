@@ -24,6 +24,10 @@
 "use strict";
 //-------- Abhängigkeiten importieren --------------------
 // ANCHOR Abhängigkeiten importieren
+
+//Cookie-Parser
+const cookie = require('cookie');
+
 // Express.js
 const path = require('path');
 const express = require('express');
@@ -41,13 +45,16 @@ const saltRounds = 10;
 
 //better-sqlite3
 const Database = require('better-sqlite3');
-const db = new Database('data/db/users.db', { verbose: console.log });
+const db = new Database('data/db/users.db', { verbose: logToFile });
 
 // Initialisieren
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const port = 80;
+const fs = require('fs');
+const { log } = require('console');
+const { disconnect } = require('process');
 
 // -------------- Einstellungen --------------------
 // ANCHOR Einstellungen
@@ -58,6 +65,8 @@ const title = 'Espas Chat (◕‿◕✿)';
 let topic = 'Willkommen im Chat!';
 // Standard Username
 let defaultUsername = 'Gast';
+// Log-Datei
+const loggingON = true; // Logging aktivieren oder deaktivieren
 
 // Benutzerfarben
 const Colors = [
@@ -87,11 +96,12 @@ let userColors = [];
 let admins = []; // Liste der Administratoren
 let userBanned = []; // Liste der gebannten Benutzer
 let bannedIPs = []; // Liste der gebannten IP-Adressen
+let disconnectedUsers = []; // Liste der getrennten Benutzer 
 
 
 
 // ------------Funktionen--------------------
-//ANCHOR Funktionen
+// ANCHOR Funktionen
 
 function isNameTaken(name) {
   let taken = false;
@@ -114,7 +124,7 @@ function generateRandomUsername() {
   do {
     const randomNumber = Math.floor(Math.random() * 1000);
     username = defaultUsername + randomNumber;
-    console.log(`Generierter Benutzername: ${username}`);
+    logToFile(`Generierter Benutzername: ${username}`);
   } while (isNameTaken(username));
 
   return username;
@@ -156,6 +166,32 @@ function escapeHtml(unsafe) {
 function dbTimeStamp(name,where){
   db.prepare(`UPDATE users Set ${where} = CURRENT_TIMESTAMP WHERE LOWER(name) = ?`).run(name.toLowerCase());
 }
+
+//------------------Logging-------------------
+// Diese Funktion wird verwendet, um Log-Ausgaben zu formatieren und in einem logfile zu speichern.
+// ANCHOR Logging
+
+function logToFile(message) {
+  if (fs.existsSync('data/logs/chat.log') === false) 
+    {fs.writeFile('data/logs/chat.log', '', (err) => {
+      if (err) {console.error('Fehler beim Erstellen der Logdatei:', err);}
+    });}
+
+
+  const logMessage = `[${getCurrentTime()}] ${message}\n`;
+
+  if (loggingON === true) {
+    fs.appendFile('data/logs/chat.log', logMessage, (err) => {
+      if (err) {console.error('Fehler beim Schreiben in die Logdatei:', err);}
+    });
+  } 
+
+  console.log(logMessage.trim());
+}
+
+
+
+
 // ------------ Befehlsverarbeitung für Chat-Befehle --------------------
 // Diese Funktion verarbeitet Chat-Befehle wie /help, /name und /msg
 
@@ -180,11 +216,11 @@ function getAdminCommand(commandText, socket) {
       topic = newTopic;
       io.emit('nachricht', `<span class="user-action">Das Thema wurde von ${user} auf "${topic}" geändert.</span>`);
       io.emit('system', `topic:${topic}`);
-      console.log(`Thema geändert: [${getCurrentTime()}] ${topic} von ${user}`);
+      logToFile(`Thema geändert: [${getCurrentTime()}] ${topic} von ${user}`);
     }
     else {
       io.to(socket).emit('nachricht', `<span class="user-action">Das Thema muss mindestens 15 Zeichen lang sein.</span>`);
-      console.log(`Thema nicht geändert: [${getCurrentTime()}] ${topic} von ${user}`);
+      logToFile(`Thema nicht geändert: [${getCurrentTime()}] ${topic} von ${user}`);
     }
     return; 
   }
@@ -215,13 +251,13 @@ function getAdminCommand(commandText, socket) {
       db.prepare('UPDATE users SET admin = 1 WHERE LOWER(name) = ?').run(userToAdmin.toLowerCase());
       dbTimeStamp(userToAdmin, 'updated_at');
       io.emit('nachricht',`<span class="user-action">${userNames[socket]} hat ${userToAdmin} zum Administrator ernannt.</span>`);
-      console.log(`${userNames[socket]} hat ${userToAdmin} zum Administrator ernannt.`);
+      logToFile(`${userNames[socket]} hat ${userToAdmin} zum Administrator ernannt.`);
      
       for (const [id,name] of Object.entries(userNames)) {
         if (name.toLowerCase()===userToAdmin.toLowerCase()){
           admins[name]=true;
           admins[id]=true;
-          console.log('gefunden: ', name,' ',id);
+          logToFile('gefunden: ', name,' ',id);
           return;
         }
       }
@@ -229,7 +265,7 @@ function getAdminCommand(commandText, socket) {
     } 
      else {
       io.to(socket).emit('nachricht',`<span class="user-action">${userToAdmin} existiert nicht als registrierter Benutzer.</span>`);
-      console.log(`Benutzer ${userToAdmin} existiert nicht oder ist nicht registriert.`);
+      logToFile(`Benutzer ${userToAdmin} existiert nicht oder ist nicht registriert.`);
     }
 
     }
@@ -248,7 +284,7 @@ function getAdminCommand(commandText, socket) {
       delete admins[targetUser];
       delete admins[getSocket(targetUser)];
       io.emit('nachricht', `<span class="user-action">${targetUser} wurde von ${userNames[socket]} die Administratorrechte entzogen.</span>`);
-      console.log(`Benutzer ${targetUser} hat keine Admin-Rechte mehr: [${getCurrentTime()}] von ${userNames[socket]}`);
+      logToFile(`Benutzer ${targetUser} hat keine Admin-Rechte mehr: [${getCurrentTime()}] von ${userNames[socket]}`);
     } else {
       io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${targetUser} ist kein Administrator oder existiert nicht.</span>`);
     }
@@ -275,7 +311,7 @@ function getAdminCommand(commandText, socket) {
         dbTimeStamp(name,'updated_at')
         io.to(id).emit('nachricht', `<span class="user-action">Du wurdest von einem Administrator gebannt.</span>`);
         io.emit('nachricht', `<span class="user-action">${name} wurde von ${userNames[socket]} gebannt.</span>`);
-        console.log(`Benutzer ${name} wurde gebannt: [${getCurrentTime()}] von ${userNames[socket]}`);
+        logToFile(`Benutzer ${name} wurde gebannt: [${getCurrentTime()}] von ${userNames[socket]}`);
         const banIP = io.sockets.sockets.get(id).handshake.address;
         bannedIPs.push(banIP);
         if (!id.startsWith('Gast')) {
@@ -317,7 +353,7 @@ function getAdminCommand(commandText, socket) {
 
     if (userFound) {
       io.emit('nachricht', `<span class="user-action">${targetUser} wurde von ${userNames[socket]} entbannt.</span>`);
-      console.log(`Benutzer ${targetUser} wurde entbannt: [${getCurrentTime()}] von ${userNames[socket]}`);
+      logToFile(`Benutzer ${targetUser} wurde entbannt: [${getCurrentTime()}] von ${userNames[socket]}`);
       }
     else {
       io.to(socket).emit('nachricht', `<span class="user-action">Der Benutzer ${targetUser} ist nicht gebannt.</span>`);
@@ -332,7 +368,7 @@ function getAdminCommand(commandText, socket) {
 switch (true) {
   case commandText.startsWith('/help'):
     adminHelp(socket);
-    console.log(`Admin-Hilfe angefordert von ${socket}: [${getCurrentTime()}]`);
+    logToFile(`Admin-Hilfe angefordert von ${socket}: [${getCurrentTime()}]`);
     break;
   case commandText.startsWith('/ban'):
     banUser(commandText, socket);
@@ -356,6 +392,7 @@ switch (true) {
 }
 
 // ---------------- Befehlsverarbeitung für User-Befehle --------------------
+//ANCHOR User-Befehle
 function getCommand(commandText, socket) {
 
   function showHelp(socket) {
@@ -395,7 +432,7 @@ function getCommand(commandText, socket) {
       return;
     }
     
-    console.log(userNames[socket]);
+    logToFile(`Benutzername geändert von ${oldName} zu ${newName}`);
     userNames[socket] = newName;
     io.emit('nachricht', `<span class="user-action">${oldName} hat seinen Benutzernamen auf ${newName} geändert.</span>`);
     
@@ -417,7 +454,7 @@ function getCommand(commandText, socket) {
                             <span class="time">[${getCurrentTime()}]</span> <span class="privateMSG">${escapeHtml(message)}</span>`;
         io.to(id).emit('nachricht', privateMsg);
         io.to(socket).emit('nachricht', `<span class="user-action">Nachricht an ${targetUser} gesendet: </span><br>${privateMsg}`);
-        console.log(`Private Nachricht von ${socket} an ${targetUser}: [${getCurrentTime()}] ${message}`);
+        logToFile(`Private Nachricht von ${socket} an ${targetUser}: [${getCurrentTime()}] ${message}`);
         userFound = true;
         break;
       }      
@@ -483,7 +520,7 @@ function getCommand(commandText, socket) {
   
     
     io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${userNames[socket]} wurde erfolgreich erstellt.</span>`);
-    console.log(`Neuer Benutzer erstellt: [${getCurrentTime()}] ${userNames[socket]}`);
+    logToFile(`Neuer Benutzer erstellt: [${getCurrentTime()}] ${userNames[socket]}`);
     }
     else {
       io.to(socket).emit('nachricht', `<span class="user-action">Benutzername ${userNames[socket]} ist bereits vergeben. Bitte wähle einen anderen.</span>`); 
@@ -509,7 +546,7 @@ function getCommand(commandText, socket) {
     if (user && bcrypt.compareSync(password, user.password)) {
       if (user.banned) {
         io.to(socket).emit('nachricht', '<span class="user-action">Du wurdest gebannt und kannst dich nicht einloggen.</span>');
-        console.log(`Versuchter Login eines gebannten Benutzers: [${getCurrentTime()}] ${username}`);
+        logToFile(`Versuchter Login eines gebannten Benutzers: [${getCurrentTime()}] ${username}`);
         bannedIPs.push(io.sockets.sockets.get(socket).handshake.address);
         return;
       }
@@ -518,7 +555,7 @@ function getCommand(commandText, socket) {
       db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, last_ip = ? WHERE name = ?').run(ip, user.name);
       io.to(socket).emit('nachricht', `<span class="user-action">Willkommen zurück, ${userNames[socket]}!</span>`);
       io.emit('nachricht', `<span class="user-action">${userNames[socket]} hat sich eingeloggt.</span>`);
-      console.log(`Benutzer ${userNames[socket]} eingeloggt: [${getCurrentTime()}]`);
+      logToFile(`Benutzer ${userNames[socket]} eingeloggt: [${getCurrentTime()}]`);
 
       if (user.admin) {
         // Füge den Benutzernamen zur Admin-Liste hinzu
@@ -547,7 +584,7 @@ function getCommand(commandText, socket) {
       if (user) {
         const lastLoginTime = user.last_login ? new Date(user.last_login).toLocaleString() : 'Nie';
         io.to(socket).emit('nachricht', `<span class="user-action">Letztes Login von ${targetUser}: ${lastLoginTime}</span>`);
-        console.log(`Letztes Login von ${targetUser} abgefragt: [${getCurrentTime()}] von ${userNames[socket]}`);
+        logToFile(`Letztes Login von ${targetUser} abgefragt: [${getCurrentTime()}] von ${userNames[socket]}`);
       }
       else {
         io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${targetUser} nicht gefunden.</span>`);
@@ -556,16 +593,15 @@ function getCommand(commandText, socket) {
 
 
 // ----------------- Hauptfunktion getCommand -------------------
-//ANCHOR User-Befehle
+
 
   switch (true) {
     case commandText.startsWith('/help'):
       showHelp(socket);
-      console.log(`Hilfe angefordert von ${socket}: [${getCurrentTime()}]`);
+      logToFile(`Hilfe angefordert von ${socket}: [${getCurrentTime()}]`);
       break;
     case commandText.startsWith('/name'):
       register(socket, commandText, userNames[socket]);
-      console.log(`Benutzername geändert von ${socket}: [${getCurrentTime()}]`);
       break;
     case commandText.startsWith('/msg'):
       privateMessage(commandText, socket);
@@ -631,16 +667,39 @@ app.get('/', (req, res) => {
   });
 });
 
+//cookie-Parser Middleware
+let sessionRestore = false;
+io.use((socket, next) => {
+  if (socket.handshake.headers.cookie) {
+    const cookies = cookie.parse(socket.handshake.headers.cookie);
+    const oldSocketId = cookies.socketid;
 
+    if (oldSocketId && disconnectedUsers[oldSocketId]) {
+      logToFile(`Cookie gefunden: ${oldSocketId} mit Benutzername ${disconnectedUsers[oldSocketId]}`);
+      socket.clientId = oldSocketId; // zum späteren Zugriff speichern
+      sessionRestore = true;
+      logToFile(`Wiederherstellung der Sitzung für ${socket.id} mit Benutzername ${disconnectedUsers[oldSocketId]}`);
+      userNames[socket.id] = disconnectedUsers[oldSocketId];
+      userColors[socket.id] = userColors[oldSocketId];
+      delete disconnectedUsers[oldSocketId];
+    } else {
+      logToFile(`Cookie gefunden, aber Benutzername nicht in disconnectedUsers: ${oldSocketId}`);
+    }
+  }
+  next();
+});
 // Socket.IO initialisieren
 io.on('connection', (socket) => {
+  if (!userNames[socket.id]) {
   userNames[socket.id] = generateRandomUsername();
   userColors[socket.id] = Colors[Math.floor(Math.random() * Colors.length)];
   io.emit('nachricht', `<span class="user-action">${userNames[socket.id]} hat den Chat betreten.</span>`);
-  io.to(socket.id).emit('nachricht', `<span class="user-action">Willkommen, ${userNames[socket.id]}!<span>
+  io.to(socket.id).emit ('nachricht', `<span class="user-action">Willkommen, ${userNames[socket.id]}!<span>
                          <span class="secretMsg">Tippe: '/name &lt;dein Name&gt;' um deinen Namen zu ändern oder 
                          /help für den Hilfe-Dialog.</span>`);
-  console.log('Verbunden:', socket.id);
+  logToFile('Neuer Benutzer verbunden: ' + userNames[socket.id] + ' mit ID: ' + socket.id + ' IP: ' + socket.handshake.address);
+  io.to(socket.id).emit('system', `setCookie:${socket.id}`);}
+
 
   // Event-Handler für Nachrichten
   socket.on('nachricht', (text) => {
@@ -650,6 +709,7 @@ io.on('connection', (socket) => {
     }
     else {
           if (text[0] === '/') {
+            io.to(socket.id).emit('system', `setCookie:${socket.id}`);
             getCommand(text, socket.id);
           } 
           else { 
@@ -659,7 +719,8 @@ io.on('connection', (socket) => {
                           + getCurrentTime() + '] </span> ' 
                           + escapeHtml(text);
             io.emit('nachricht',  chatMsg);
-            console.log(`Nachricht von ${socket.id}: [${getCurrentTime()}] ${text}`);
+            io.to(socket.id).emit('system', `setCookie:${socket.id}`);
+            logToFile(`Nachricht von ${userNames[socket.id]}: [${getCurrentTime()}] ${text}`);
     }}
   });
 
@@ -668,15 +729,18 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     if (userNames[socket.id]) {
       io.emit('nachricht', `<span class="user-action">${userNames[socket.id]} hat den Chat verlassen.</span>`);
-      console.log(`Benutzer ${userNames[socket.id]} hat den Chat verlassen.`);
+      logToFile(`Benutzer ${userNames[socket.id]} hat den Chat verlassen.`);
+      disconnectedUsers[socket.id] = userNames[socket.id];
+      disconnectedUsers[userNames[socket.id]] = socket.id;
       delete userNames[socket.id];
       delete userColors[socket.id];
     }
-    console.log('Getrennt:', socket.id);
+    logToFile('Getrennt:', userNames[socket.id]);
   });
 });
 
 // Start
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Server läuft auf http://localhost:${port}`);
+  logToFile(`Server läuft auf http://localhost:${port}`);
 });
+

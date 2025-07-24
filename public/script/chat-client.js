@@ -14,7 +14,7 @@ form.addEventListener("submit", (e) => {
 
   if (text.startsWith("/clean")) {
     // Leert den Chatverlauf, wenn der Befehl /clean eingegeben wird
-    messages.innerHTML = "";
+    location.reload();
     return;
   }
   
@@ -37,4 +37,9 @@ socket.on("system", (msg) => {
     const newTopic = msg.replace("topic:", "").trim();
     topic.textContent = newTopic;
   }
-})
+  if (msg.startsWith("setCookie:")) {
+    const cookieValue = msg.replace("setCookie:", "").trim();
+    document.cookie = `socketid=${cookieValue}; path=/`; // Setzt das Cookie mit dem Socket-ID
+    console.log("Cookie gesetzt:", cookieValue);
+  }
+});

@@ -1,3 +1,4 @@
+/* ANCHOR Global Styles */
 html {
     height: 98%;
     margin: 0;
@@ -59,6 +60,9 @@ footer {
     font-size: 0.9em;
     color: #666;
 }
+
+/* ANCHOR Chat Styles */
+
 .chat {
     display:flex;
     flex-direction: column;
@@ -83,6 +87,7 @@ footer {
     border-radius: 8px;
     border: #007bff 1px solid;
     overflow: auto;
+    overflow-x: hidden;
     overflow-wrap: break-word;
     scroll-behavior: smooth;
 }
@@ -116,3 +121,121 @@ footer {
 .privateMSG {
     color: rgb(0, 0, 255);
 }   
+
+/* ANCHOR Menu Styles */
+.topicMenu {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}   
+
+.menueButton {
+    position: sticky;
+    z-index: 1000;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    float: right;
+}
+
+.menu {
+    display: none;
+    position: sticky;
+    margin: 0 auto;
+    line-height: 1,2em;
+    padding: 10px;
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: auto; 
+    background: white;
+    border: 1px solid #007bff;
+    border-radius: 8px;
+    box-shadow: 4px 2px 2px rgba(0, 0, 0, 0);
+    overflow: auto;
+    scrollbar-width: none;
+}
+
+.menu form {
+    margin-bottom: 10px;
+}
+
+.menu form input {
+    padding: 10px;
+    font-size: 15px;
+    border: 1px solid #007bff;
+    border-radius: 4px;
+}
+
+.menu form button {
+    margin-top: 10px;
+    height: 40px;
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}   
+
+.menu h3 {
+    color: #007bff;
+    text-shadow: 8px 4px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.menu b {
+    color: #d66d03;
+    font-size: 16px;
+    text-shadow: 4px 2px 2px rgba(0, 0, 0, 0.1);
+    margin-top: 0;}
+
+/* ANCHOR Emoji Styles */
+
+.smileybox {
+    display: none;
+    position: fixed;
+    line-height: 1.2em;
+    padding: 10px;
+    top: 50%; 
+    left:50%;
+    transform: translate(-50%, -50%); 
+    width: auto;
+    height: 60%; 
+    background: white;
+    border: 3px solid #007bff;
+    border-radius: 8px;
+    box-shadow: 4px 2px 2px rgba(0, 0, 0, 0);
+    overflow: scroll;
+    overflow-x: hidden;
+    scrollbar-color: #82b8f3 #f9f9f9;
+}
+
+.smileybox h3 {
+    color: #007bff;
+    text-shadow: 8px 4px 3px rgba(0, 0, 0, 0.1);
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.smileybtn {
+    cursor: pointer;
+    font-size: 28px;
+    margin-right: 10px;
+}
+
+.emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.emoji-btn {
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
