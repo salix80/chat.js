@@ -1,4 +1,6 @@
 
+// !!Lernprojekt, nicht für den produktiven Einsatz geeignet!!
+
 // # Chat-Server mit Node.js, Express und Socket.IO
 //
 // Geschrieben von Andreas Pfister
@@ -53,8 +55,8 @@ const server = http.createServer(app);
 const io = new Server(server);
 const port = 80;
 const fs = require('fs');
-const { log } = require('console');
-const { disconnect } = require('process');
+//const { log } = require('console');
+//const { disconnect, emit } = require('process');
 
 // -------------- Einstellungen --------------------
 // ANCHOR Einstellungen
@@ -133,6 +135,10 @@ function generateRandomUsername() {
 function getCurrentTime() {
     const now = new Date(); // Erstellt ein neues Date-Objekt mit der aktuellen Zeit
 
+    const year = now.getFullYear(); // Holt das Jahr (z.B. 2023)
+    const month = now.getMonth() + 1; // Holt den Monat (0-11), daher +1
+    const day = now.getDate(); // Holt den Tag des Monats (1-31)
+
     const hours = now.getHours();     // Holt die Stunden (0-23)
     const minutes = now.getMinutes();   // Holt die Minuten (0-59)
     const seconds = now.getSeconds();   // Holt die Sekunden (0-59)
@@ -141,9 +147,11 @@ function getCurrentTime() {
     const formattedHours = String(hours).padStart(2, '0');
     const formattedMinutes = String(minutes).padStart(2, '0');
     const formattedSeconds = String(seconds).padStart(2, '0');
+    const formattedDay = String(day).padStart(2, '0');
+    const formattedMonth = String(month).padStart(2, '0');
 
     // Gibt die Zeit im Format "HH:MM:SS" zurück
-    return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+    return `${formattedDay}.${formattedMonth}.${year} | ${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 }
 
 function getSocket(username){
@@ -189,7 +197,36 @@ function logToFile(message) {
   console.log(logMessage.trim());
 }
 
+function deleteUserFromDB(username,socket) {
+  const user = db.prepare('SELECT * FROM users WHERE LOWER(name) = ?').get(username.toLowerCase());
+  if (user) {
+    db.prepare('DELETE FROM users WHERE LOWER(name) = ?').run(username.toLowerCase());
+    logToFile(`[${getCurrentTime()}] Benutzer ${username} wurde aus der Datenbank gelöscht`);
+    io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${username} wurde erfolgreich gelöscht.</span>`);
+  } else {
+    io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${username} nicht gefunden.</span>`);
+  }
+}
 
+
+function Adminproof(socket) {
+  if (admins[socket] === undefined) {
+    io.to(socket).emit('nachricht', '<span class="user-action">Du bist kein Administrator. Dieser Befehl ist nur für Administratoren verfügbar.</span>');
+    io.emit('nachricht', `<span class="user-action">${userNames[socket]} versucht, einen Admin-Befehl auszuführen, aber ist kein Administrator.</span>`);
+    logToFile(`Zugriff verweigert: ${userNames[socket]} versucht, einen Admin-Befehl auszuführen.`);
+    return false;
+  }
+  //prüfe Datebank auf Adminrechte
+  const user = db.prepare('SELECT admin FROM users WHERE LOWER(name) = ?').get(userNames[socket].toLowerCase());
+  if (user && user.admin) {
+    return true; // Der Benutzer ist ein Administrator
+  } else {
+    io.to(socket).emit('nachricht', '<span class="user-action">Du bist kein Administrator. Dieser Befehl ist nur für Administratoren verfügbar.</span>');
+    io.emit('nachricht', `<span class="user-action">${userNames[socket]} versucht, einen Admin-Befehl auszuführen, aber ist kein Administrator.</span>`);
+    logToFile(`Zugriff verweigert: ${userNames[socket]} versucht, einen Admin-Befehl auszuführen.`);
+    return false; // Der Benutzer ist kein Administrator
+  }
+}
 
 
 // ------------ Befehlsverarbeitung für Chat-Befehle --------------------
@@ -206,7 +243,8 @@ function getAdminCommand(commandText, socket) {
       <span class="command">/unban &lt;Benutzername&gt;</span> - Hebt den Bann eines Benutzers auf.<br>
       <span class="command">/setAdmin &lt;Benutzername&gt;</span> - Macht einen Benutzer zum Administrator.<br>
       <span class="command">/removeAdmin &lt;Benutzername&gt;</span> - Entfernt die Administratorrechte eines Benutzers.<br>
-      <span class="command">/topic &lt;neues Thema&gt;</span> - Ändert das aktuelle Thema des Chats.<br>`;
+      <span class="command">/topic &lt;neues Thema&gt;</span> - Ändert das aktuelle Thema des Chats.<br>
+      <span class="command">/deleteUser &lt;Benutzername&gt;</span> - Benutzer aus der Datenbank entfernen.<br>`;
     io.to(socket).emit('nachricht', adminHelpMessage);
   }
 
@@ -216,11 +254,11 @@ function getAdminCommand(commandText, socket) {
       topic = newTopic;
       io.emit('nachricht', `<span class="user-action">Das Thema wurde von ${user} auf "${topic}" geändert.</span>`);
       io.emit('system', `topic:${topic}`);
-      logToFile(`Thema geändert: [${getCurrentTime()}] ${topic} von ${user}`);
+      logToFile(`Thema geändert: ${topic} von ${user}`);
     }
     else {
       io.to(socket).emit('nachricht', `<span class="user-action">Das Thema muss mindestens 15 Zeichen lang sein.</span>`);
-      logToFile(`Thema nicht geändert: [${getCurrentTime()}] ${topic} von ${user}`);
+      logToFile(`Thema-Änderung fehlgeschlagen, weil zu kurz: "${newTopic}" von ${user}`);
     }
     return; 
   }
@@ -257,7 +295,6 @@ function getAdminCommand(commandText, socket) {
         if (name.toLowerCase()===userToAdmin.toLowerCase()){
           admins[name]=true;
           admins[id]=true;
-          logToFile('gefunden: ', name,' ',id);
           return;
         }
       }
@@ -265,7 +302,7 @@ function getAdminCommand(commandText, socket) {
     } 
      else {
       io.to(socket).emit('nachricht',`<span class="user-action">${userToAdmin} existiert nicht als registrierter Benutzer.</span>`);
-      logToFile(`Benutzer ${userToAdmin} existiert nicht oder ist nicht registriert.`);
+      logToFile(`setAdmin von ${userNames[socket]} fehlgeschlagen: Benutzer ${userToAdmin} existiert nicht oder ist nicht registriert.`);
     }
 
     }
@@ -284,7 +321,7 @@ function getAdminCommand(commandText, socket) {
       delete admins[targetUser];
       delete admins[getSocket(targetUser)];
       io.emit('nachricht', `<span class="user-action">${targetUser} wurde von ${userNames[socket]} die Administratorrechte entzogen.</span>`);
-      logToFile(`Benutzer ${targetUser} hat keine Admin-Rechte mehr: [${getCurrentTime()}] von ${userNames[socket]}`);
+      logToFile(`Die Adminrechte von Benutzer ${targetUser} wurden von ${userNames[socket]} entfernt.`);
     } else {
       io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${targetUser} ist kein Administrator oder existiert nicht.</span>`);
     }
@@ -311,7 +348,7 @@ function getAdminCommand(commandText, socket) {
         dbTimeStamp(name,'updated_at')
         io.to(id).emit('nachricht', `<span class="user-action">Du wurdest von einem Administrator gebannt.</span>`);
         io.emit('nachricht', `<span class="user-action">${name} wurde von ${userNames[socket]} gebannt.</span>`);
-        logToFile(`Benutzer ${name} wurde gebannt: [${getCurrentTime()}] von ${userNames[socket]}`);
+        logToFile(`Benutzer ${name} wurde gebannt von ${userNames[socket]}`);
         const banIP = io.sockets.sockets.get(id).handshake.address;
         bannedIPs.push(banIP);
         if (!id.startsWith('Gast')) {
@@ -353,7 +390,7 @@ function getAdminCommand(commandText, socket) {
 
     if (userFound) {
       io.emit('nachricht', `<span class="user-action">${targetUser} wurde von ${userNames[socket]} entbannt.</span>`);
-      logToFile(`Benutzer ${targetUser} wurde entbannt: [${getCurrentTime()}] von ${userNames[socket]}`);
+      logToFile(`Benutzer ${targetUser} wurde entbannt von ${userNames[socket]}`);
       }
     else {
       io.to(socket).emit('nachricht', `<span class="user-action">Der Benutzer ${targetUser} ist nicht gebannt.</span>`);
@@ -364,7 +401,26 @@ function getAdminCommand(commandText, socket) {
     }
   }
 
+
+  function deleteUser(commandText, socket) {
+    const parts = commandText.split(' ');
+    if (parts.length < 2) {
+      io.to(socket).emit('nachricht', '<span class="user-action">Bitte gib einen Benutzernamen an, den du löschen möchtest. zB.: /deleteUser Max</span>');
+      return;
+    }
+    const targetUser = parts[1].trim();
+    deleteUserFromDB(targetUser, socket);
+    io.to(getSocket(targetUser)).emit('nachricht', `<span class="user-action">Benutzer ${targetUser} wurde von einem Admin aus der Datenbank gelöscht. Du hast keinen registrierten Benutzer mehr.</span>`);
+  }
+
+
 //--------------------Main-Funktion getAdminCommand-------------------
+if (Adminproof(socket) === false) {
+  banUser(`/ban ${userNames(socket)}`, socket);
+  return;
+}
+
+
 switch (true) {
   case commandText.startsWith('/help'):
     adminHelp(socket);
@@ -385,6 +441,12 @@ switch (true) {
   case commandText.startsWith('/topic'):
     changeTopic(userNames[socket], commandText);
     break;
+  case commandText.startsWith('/deleteUser'):
+    deleteUser(commandText, socket);
+    break;
+  case commandText.startsWith('/dump'):
+    dumpGlobalVariablesAndDB2file(socket);
+    break
   default:
     io.to(socket).emit('nachricht', '<span class="user-action">Unbekannter Befehl. Tippe /help für Hilfe.</span>');
     break;
@@ -405,11 +467,14 @@ function getCommand(commandText, socket) {
       <span class="command">/clean</span> - Leert den Chatverlauf.<br>
       <span class="command">/createUser &lt;passwort&gt; &lt;passwort wiederholen&gt;</span> - Erstellt einen neuen Benutzer mit dem angegebenen Passwort und aktuellen Benutzernamen.<br>
       <span class="command">/login &lt;Benutzername&gt; &lt;Passwort&gt;</span> - Loggt einen Benutzer ein, wenn er bereits existiert.<br>
-      <span class="command">/lastLogin &lt;Benutzername&gt;</span> - Zeigt die Datum und Zeit des letzten Logins eines Benutzers an.<br>`;
+      <span class="command">/lastLogin &lt;Benutzername&gt;</span> - Zeigt die Datum und Zeit des letzten Logins eines Benutzers an.<br>
+      <span class="command">/deleteMe</span> - Löscht deinen registrierten Benutzer.<br>
+      <span class="command">/changePassword &lt;altes Passwort&gt; &lt;neues Passwort&gt; &lt;neues Passwort wiederholen&gt;</span> - Ändert dein Passwort.<br>`;
 
     io.to(socket).emit('nachricht', helpMessage);
     if (admins[userNames[socket]] !== undefined) {
         getAdminCommand(commandText, socket);}
+    logToFile(`Hilfe angefordert von ${userNames[socket]}, ${socket}`);
   }
 
   function register(socket, commandText,oldName) {
@@ -434,8 +499,7 @@ function getCommand(commandText, socket) {
     
     logToFile(`Benutzername geändert von ${oldName} zu ${newName}`);
     userNames[socket] = newName;
-    io.emit('nachricht', `<span class="user-action">${oldName} hat seinen Benutzernamen auf ${newName} geändert.</span>`);
-    
+    io.emit('nachricht', `<span class="user-action">${oldName} hat seinen Benutzernamen auf ${newName} geändert.</span>`);   
   }
 
   function privateMessage(commandText, socket) {
@@ -454,7 +518,7 @@ function getCommand(commandText, socket) {
                             <span class="time">[${getCurrentTime()}]</span> <span class="privateMSG">${escapeHtml(message)}</span>`;
         io.to(id).emit('nachricht', privateMsg);
         io.to(socket).emit('nachricht', `<span class="user-action">Nachricht an ${targetUser} gesendet: </span><br>${privateMsg}`);
-        logToFile(`Private Nachricht von ${socket} an ${targetUser}: [${getCurrentTime()}] ${message}`);
+        logToFile(`Private Nachricht von ${socket} an ${targetUser}: ${message}`);
         userFound = true;
         break;
       }      
@@ -481,6 +545,7 @@ function getCommand(commandText, socket) {
       }
     }
     io.to(socket).emit('nachricht', userList);
+    logToFile(`Benutzerliste angefordert von ${userNames[socket]}`);
   }
 
   function createUser(commandText, socket) {
@@ -520,7 +585,7 @@ function getCommand(commandText, socket) {
   
     
     io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${userNames[socket]} wurde erfolgreich erstellt.</span>`);
-    logToFile(`Neuer Benutzer erstellt: [${getCurrentTime()}] ${userNames[socket]}`);
+    logToFile(`Neuer Benutzer erstellt: ${userNames[socket]}`);
     }
     else {
       io.to(socket).emit('nachricht', `<span class="user-action">Benutzername ${userNames[socket]} ist bereits vergeben. Bitte wähle einen anderen.</span>`); 
@@ -546,7 +611,7 @@ function getCommand(commandText, socket) {
     if (user && bcrypt.compareSync(password, user.password)) {
       if (user.banned) {
         io.to(socket).emit('nachricht', '<span class="user-action">Du wurdest gebannt und kannst dich nicht einloggen.</span>');
-        logToFile(`Versuchter Login eines gebannten Benutzers: [${getCurrentTime()}] ${username}`);
+        logToFile(`Versuchter Login eines gebannten Benutzers: ${username} von IP ${io.sockets.sockets.get(socket).handshake.address}`);
         bannedIPs.push(io.sockets.sockets.get(socket).handshake.address);
         return;
       }
@@ -555,7 +620,7 @@ function getCommand(commandText, socket) {
       db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, last_ip = ? WHERE name = ?').run(ip, user.name);
       io.to(socket).emit('nachricht', `<span class="user-action">Willkommen zurück, ${userNames[socket]}!</span>`);
       io.emit('nachricht', `<span class="user-action">${userNames[socket]} hat sich eingeloggt.</span>`);
-      logToFile(`Benutzer ${userNames[socket]} eingeloggt: [${getCurrentTime()}]`);
+      logToFile(`Benutzer ${userNames[socket]} eingeloggt von IP ${ip} Socket-ID: ${socket.id}`);
 
       if (user.admin) {
         // Füge den Benutzernamen zur Admin-Liste hinzu
@@ -563,6 +628,7 @@ function getCommand(commandText, socket) {
         admins[userNames[socket]] = true; 
         io.to(socket).emit('nachricht', '<span class="user-action">Du bist als Administrator eingeloggt.</span>');
         io.emit('Nachricht', `<span class="user-action">${userNames[socket]} hat sich als Administrator eingeloggt.</span>`);
+        logToFile(`Benutzer ${userNames[socket]} ist Administrator und hat sich eingeloggt.`);
       } 
     } else {
       io.to(socket).emit('nachricht', '<span class="user-action">Ungültiger Benutzername oder falsches Passwort.</span>');
@@ -584,12 +650,45 @@ function getCommand(commandText, socket) {
       if (user) {
         const lastLoginTime = user.last_login ? new Date(user.last_login).toLocaleString() : 'Nie';
         io.to(socket).emit('nachricht', `<span class="user-action">Letztes Login von ${targetUser}: ${lastLoginTime}</span>`);
-        logToFile(`Letztes Login von ${targetUser} abgefragt: [${getCurrentTime()}] von ${userNames[socket]}`);
+        logToFile(`Letztes Login von ${targetUser} abgefragt von ${userNames[socket]}`);
       }
       else {
         io.to(socket).emit('nachricht', `<span class="user-action">Benutzer ${targetUser} nicht gefunden.</span>`);
       }
     }
+
+    function changePassword(commandText, socket) {
+      const parts = commandText.split(' ');
+      if (parts.length < 4) {
+        io.to(socket).emit('nachricht', '<span class="user-action">Bitte gib dein altes Passwort, neues Passwort und neues Passwort wiederholen an. zB.: /changePassword &lt;altes Passwort&gt; &lt;neues Passwort&gt; &lt;neues Passwort wiederholen&gt;</span>');
+        return;}
+      
+      const oldPassword = parts[1].trim();
+      const newPassword = parts[2].trim();
+      const newPasswordRepeat = parts[3].trim();
+
+      if (newPassword !== newPasswordRepeat) {
+        io.to(socket).emit('nachricht', '<span class="user-action">Die neuen Passwörter stimmen nicht überein. Bitte versuche es erneut.</span>');
+        return;}
+
+      const user = db.prepare('SELECT * FROM users WHERE LOWER(name) = ?').get(userNames[socket].toLowerCase());
+      if (user && bcrypt.compareSync(oldPassword, user.password)) {
+        if (newPassword.length < 8) {
+          io.to(socket).emit('nachricht', '<span class="user-action">Das neue Passwort muss mindestens 8 Zeichen lang sein.</span>');
+          return;}
+        if (newPassword.length > 20) {
+          io.to(socket).emit('nachricht', '<span class="user-action">Das neue Passwort darf maximal 20 Zeichen lang sein.</span>');
+          return;}
+      const newPasswordHash = bcrypt.hashSync(newPassword, saltRounds);
+      db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(name) = ?').run(newPasswordHash, userNames[socket].toLowerCase());
+      logToFile(`Passwort für ${userNames[socket]} geändert.`);
+      } else {
+        io.to(socket).emit('nachricht', '<span class="user-action">Das alte Passwort ist falsch. Bitte versuche es erneut.</span>');
+        logToFile(`Passwortänderung fehlgeschlagen für ${userNames[socket]}: Falsches altes Passwort.`);
+        return;
+      }
+    }
+      
 
 
 // ----------------- Hauptfunktion getCommand -------------------
@@ -598,7 +697,6 @@ function getCommand(commandText, socket) {
   switch (true) {
     case commandText.startsWith('/help'):
       showHelp(socket);
-      logToFile(`Hilfe angefordert von ${socket}: [${getCurrentTime()}]`);
       break;
     case commandText.startsWith('/name'):
       register(socket, commandText, userNames[socket]);
@@ -617,8 +715,10 @@ function getCommand(commandText, socket) {
       break;
     case commandText.startsWith('/lastLogin'):
       lastLogin(commandText, socket);
-      break;  
-
+      break;
+    case commandText.startsWith('/deleteMe'):
+      deleteUserFromDB(userNames[socket], socket);  
+      break;
     default:
       if (admins[userNames[socket]] !== undefined) {
         getAdminCommand(commandText, socket);}
@@ -688,6 +788,7 @@ io.use((socket, next) => {
   }
   next();
 });
+
 // Socket.IO initialisieren
 io.on('connection', (socket) => {
   if (!userNames[socket.id]) {
@@ -720,7 +821,7 @@ io.on('connection', (socket) => {
                           + escapeHtml(text);
             io.emit('nachricht',  chatMsg);
             io.to(socket.id).emit('system', `setCookie:${socket.id}`);
-            logToFile(`Nachricht von ${userNames[socket.id]}: [${getCurrentTime()}] ${text}`);
+            logToFile(`Nachricht von ${userNames[socket.id]}: ${text}`);
     }}
   });
 
@@ -735,7 +836,6 @@ io.on('connection', (socket) => {
       delete userNames[socket.id];
       delete userColors[socket.id];
     }
-    logToFile('Getrennt:', userNames[socket.id]);
   });
 });
 

@@ -1,11 +1,28 @@
+function EnterInMenuForms() {
+    const menu = document.getElementById('menu');
+    const forms = menu.querySelectorAll('form');
+
+    forms.forEach(form => {
+        form.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+            }
+        });
+    });
+}
+
+
 function menuToggle() {
     const menu = document.getElementById('menu');
     if (menu.style.display === 'block') {
         menu.style.display = 'none';
     } else {
         menu.style.display = 'block';
+        EnterInMenuForms(); // Deaktiviere Enter-Taste in den Formularen des Menüs
     }
 }
+
+
 
 function nameAendern() {
     const usernameInput = document.getElementById('username-input');
