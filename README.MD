@@ -62,26 +62,26 @@ grafisch mittels Menu ausgelöst werden:
 
    ```chatJS
    /help - Zeigt diese Hilfe an.
-   /name \<dein Name\> - Ändert deinen Benutzernamen.
-   /msg \<Benutzername\> \<Nachricht\> - Sendet eine private Nachricht an einen Benutzer.
+   /name <dein Name> - Ändert deinen Benutzernamen.
+   /msg <Benutzername> <Nachricht> - Sendet eine private Nachricht an einen Benutzer.
    /userlist - Zeigt eine Liste aller aktiven Benutzer an.
    /clean - Leert den Chatverlauf.
-   /createUser \<passwort\> \<passwort wiederholen\> - Erstellt einen neuen Benutzer mit dem angegebenen Passwort und aktuellen Benutzernamen.
-   /login \<Benutzername\> \<Passwort\> - Loggt einen Benutzer ein, wenn er bereits existiert.
-   /lastLogin \<Benutzername\> - Zeigt die Datum und Zeit des letzten Logins eines Benutzers an.
+   /createUser <passwort> <passwort wiederholen> - Erstellt einen neuen Benutzer mit dem angegebenen Passwort und aktuellen Benutzernamen.
+   /login <Benutzername> <Passwort> - Loggt einen Benutzer ein, wenn er bereits existiert.
+   /lastLogin <Benutzername> - Zeigt die Datum und Zeit des letzten Logins eines Benutzers an.
    /deleteMe - Löscht deinen registrierten Benutzer.
-   /changePassword \<altes Passwort\> \<neues Passwort\> \<neues Passwort wiederholen\> - Ändert dein Passwort.
+   /changePassword <altes Passwort> <neues Passwort> <neues Passwort wiederholen> - Ändert dein Passwort.
    ```
 
 *Als Administrator zusätzlich:*
 
    ```chatJS
-   /ban \<Benutzername\> - Bannt einen Benutzer.
-   /unban \<Benutzername\> - Hebt den Bann eines Benutzers auf.
-   /setAdmin \<Benutzername\> - Macht einen Benutzer zum Administrator.
-   /removeAdmin \<Benutzername\> - Entfernt die Administratorrechte eines Benutzers.
-   /topic \<neues Thema\> - Ändert das aktuelle Thema des Chats.
-   /deleteUser \<Benutzername\> - Benutzer aus der Datenbank entfernen.
+   /ban <Benutzername> - Bannt einen Benutzer.
+   /unban <Benutzername> - Hebt den Bann eines Benutzers auf.
+   /setAdmin <Benutzername> - Macht einen Benutzer zum Administrator.
+   /removeAdmin <Benutzername> - Entfernt die Administratorrechte eines Benutzers.
+   /topic <neues Thema> - Ändert das aktuelle Thema des Chats.
+   /deleteUser <Benutzername> - Benutzer aus der Datenbank entfernen.
    ```
 
 ## Technisches
